@@ -1,0 +1,82 @@
+# This workflow will build a golang project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
+
+name: build
+
+permissions:
+  contents: write
+  
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Checkout submodules
+        run: git submodule update --init --recursive --remote
+
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: "zulu"
+          java-version: 17
+
+      - name: Setup Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: "1.21.1"
+        
+      - name: Setup Go Mobile
+        run: |
+          go install golang.org/x/mobile/cmd/gomobile@latest
+          export PATH=$PATH:~/go/bin
+          
+      # - name: Download latest Geo files
+      #   run: |
+      #     rm assets/*
+      #     curl -o assets/geoip.dat https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat
+      #     curl -o assets/geosite.dat https://github.com/hiddify/domain-list-community/releases/latest/download/hiddify-geosite.dat
+          
+          
+          
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v2
+        
+      - name: Setup NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r25b
+        
+      - name: Build Lib
+        run: |
+          gomobile init
+          go mod tidy -v
+          gomobile bind -v -androidapi 21 -ldflags='-s -w' ./
+          
+          
+      - name: Upload files to Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: lib
+          path: |
+            libv2ray.aar
+            libv2ray-sources.jar
+            
+            
+          
+#       - name: Upload Alpha
+#         uses: softprops/action-gh-release@v1
+#         if: ${{ success() }}
+#         with:
+#           name: CI 
+#           files: libv2ray*r
+#           prerelease: true
+#           generate_release_notes: true
